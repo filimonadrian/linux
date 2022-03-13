@@ -170,7 +170,8 @@ static void list_sync_exit(void)
 	struct task_info *ti;
 
 	ti = list_entry(head.prev, struct task_info, list);
-	atomic_set(&ti->count, 10);
+	/* for the next exercise: */
+	// atomic_set(&ti->count, 10);
 
 	task_info_remove_expired();
 	task_info_print_list("after removing expired");
