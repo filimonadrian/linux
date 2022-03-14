@@ -68,6 +68,7 @@ static void task_info_add_to_list(int pid)
 		ti->timestamp = jiffies;
 		atomic_inc(&ti->count);
 		/* TODO: Guess why this comment was added  here */
+		spin_unlock(&lock);
 		return;
 	}
 	/* TODO 1: critical section ends here */
