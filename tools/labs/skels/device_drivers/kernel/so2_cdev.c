@@ -49,7 +49,9 @@ static int so2_cdev_open(struct inode *inode, struct file *file)
 
 	/* TODO 2: print message when the device file is open. */
 	pr_info("Device file is open\n");
+
 	/* TODO 3: inode->i_cdev contains our cdev struct, use container_of to obtain a pointer to so2_device_data */
+	data = container_of(inode->i_cdev, struct so2_device_data, cdev);
 
 	file->private_data = data;
 
