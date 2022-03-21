@@ -35,6 +35,7 @@ MODULE_LICENSE("GPL");
 
 struct so2_device_data {
 	/* TODO 2: add cdev member */
+	struct cdev cdev;
 	/* TODO 4: add buffer with BUFSIZ elements */
 	/* TODO 7: extra members for home */
 	/* TODO 3: add atomic_t access variable to keep track if file is opened */
@@ -47,7 +48,7 @@ static int so2_cdev_open(struct inode *inode, struct file *file)
 	struct so2_device_data *data;
 
 	/* TODO 2: print message when the device file is open. */
-
+	pr_info("Device file is open\n");
 	/* TODO 3: inode->i_cdev contains our cdev struct, use container_of to obtain a pointer to so2_device_data */
 
 	file->private_data = data;
@@ -64,7 +65,7 @@ static int
 so2_cdev_release(struct inode *inode, struct file *file)
 {
 	/* TODO 2: print message when the device file is closed. */
-
+	pr_info("Device file is closed\n");
 #ifndef EXTRA
 	struct so2_device_data *data =
 		(struct so2_device_data *) file->private_data;
@@ -128,9 +129,16 @@ so2_cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static const struct file_operations so2_fops = {
 	.owner = THIS_MODULE,
 /* TODO 2: add open and release functions */
+	.open = so2_cdev_open,
+	.release = so2_cdev_release,
 /* TODO 4: add read function */
+	.read = so2_cdev_read,
+
 /* TODO 5: add write function */
+	.write = so2_cdev_write,
+
 /* TODO 6: add ioctl function */
+	.unlocked_ioctl = so2_cdev_ioctl
 };
 
 static int so2_cdev_init(void)
@@ -139,6 +147,13 @@ static int so2_cdev_init(void)
 	int i;
 
 	/* TODO 1: register char device region for MY_MAJOR and NUM_MINORS starting at MY_MINOR */
+        err = register_chrdev_region(MKDEV(MY_MAJOR, MY_MINOR), NUM_MINORS, "so2_cdev");
+        if (err != 0) {
+                /* report error */
+		pr_info("Can't register device");
+                return err;
+        }
+	pr_info("Device registered successfully\n");
 
 	for (i = 0; i < NUM_MINORS; i++) {
 #ifdef EXTRA
@@ -149,6 +164,8 @@ static int so2_cdev_init(void)
 		/* TODO 7: extra tasks for home */
 		/* TODO 3: set access variable to 0, use atomic_set */
 		/* TODO 2: init and add cdev to kernel core */
+		cdev_init(&devs[i].cdev, &so2_fops);
+		cdev_add(&devs[i].cdev, MKDEV(MY_MAJOR, i), 1);
 	}
 
 	return 0;
@@ -160,9 +177,12 @@ static void so2_cdev_exit(void)
 
 	for (i = 0; i < NUM_MINORS; i++) {
 		/* TODO 2: delete cdev from kernel core */
+		cdev_del(&devs[i].cdev);
 	}
 
 	/* TODO 1: unregister char device region, for MY_MAJOR and NUM_MINORS starting at MY_MINOR */
+	unregister_chrdev_region(MKDEV(MY_MAJOR, MY_MINOR), NUM_MINORS);
+	pr_info("Device unregistered successfully\n");
 }
 
 module_init(so2_cdev_init);
