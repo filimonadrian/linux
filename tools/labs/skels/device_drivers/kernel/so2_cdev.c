@@ -134,6 +134,10 @@ so2_cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	/* TODO 6: if cmd = MY_IOCTL_PRINT, display IOCTL_MESSAGE */
+	case MY_IOCTL_PRINT:
+		pr_info("%s\n", IOCTL_MESSAGE);
+		// printk(LOG_LEVEL, IOCTL_MESSAGE);
+		return 0;
 	/* TODO 7: extra tasks, for home */
 	default:
 		ret = -EINVAL;
