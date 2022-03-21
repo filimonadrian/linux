@@ -115,8 +115,10 @@ so2_cdev_write(struct file *file,
 	struct so2_device_data *data =
 		(struct so2_device_data *) file->private_data;
 
-
 	/* TODO 5: copy user_buffer to data->buffer, use copy_from_user */
+	if (copy_from_user(data->buf, user_buffer, strlen(user_buffer)))
+		return -EFAULT;
+
 	/* TODO 7: extra tasks for home */
 
 	return size;
