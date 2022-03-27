@@ -122,7 +122,7 @@ irqreturn_t kbd_interrupt_handler(int irq, void *dev_id)
 	 * This variables are static because they need to be
 	 * accessible (through pointers) to the bottom half routine.
 	 */
-	int pressed;
+	int pressed = 0;
 	char ch;
 	u8 scancode;
 	struct kbd *data = (struct kbd *)dev_id;
