@@ -84,6 +84,14 @@ static void put_char(struct kbd *data, char c)
 static bool get_char(char *c, struct kbd *data)
 {
 	/* TODO 4: get char from buffer; update count and get_idx */
+	if (data->count) {
+		*c = data->buf[data->get_idx];
+		data->get_idx = (data->get_idx + 1) % BUFFER_SIZE;
+		data->count--;
+
+		return true;
+	}
+
 	return false;
 }
 
@@ -159,7 +167,27 @@ static ssize_t kbd_read(struct file *file,  char __user *user_buffer,
 {
 	struct kbd *data = (struct kbd *) file->private_data;
 	size_t read = 0;
+	unsigned long flags;
+	char c;
+	bool not_consumed;
+
 	/* TODO 4: read data from buffer */
+
+	while (size) {
+
+		spin_lock_irqsave(&data->lock, flags);
+		not_consumed = get_char(&c, data);
+		spin_unlock_irqrestore(&data->lock, flags);
+
+		if (!not_consumed)
+			break;
+
+		put_user(c, user_buffer++);
+
+		size--;
+		read++;
+
+	}
 	return read;
 }
 
