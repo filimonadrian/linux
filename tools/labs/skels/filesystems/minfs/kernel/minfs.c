@@ -51,6 +51,7 @@ static const struct file_operations minfs_dir_operations = {
 static const struct inode_operations minfs_dir_inode_operations = {
 	.lookup		= minfs_lookup,
 	/* TODO 7: Use minfs_create as the create function. */
+	.create		= minfs_create
 };
 
 static const struct address_space_operations minfs_aops = {
@@ -107,6 +108,7 @@ static struct inode *minfs_iget(struct super_block *s, unsigned long ino)
 	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 
 	/* TODO 7: Fill address space operations (inode->i_mapping->a_ops) */
+	inode->i_mapping->a_ops = &minfs_aops;
 
 	if (S_ISDIR(inode->i_mode)) {
 		/* TODO 4: Fill dir inode operations. */
@@ -126,7 +128,10 @@ static struct inode *minfs_iget(struct super_block *s, unsigned long ino)
 	/* TODO 7: Fill inode and file operations for regular files
 	 * (i_op and i_fop). Use the S_ISREG macro.
 	 */
-
+	if (S_ISREG(inode->i_mode)) {
+		inode->i_op = &minfs_file_inode_operations;
+		inode->i_fop = &minfs_file_operations;
+	}
 	/* fill data for mii */
 	mii = container_of(inode, struct minfs_inode_info, vfs_inode);
 
@@ -300,17 +305,33 @@ static struct inode *minfs_new_inode(struct inode *dir)
 	struct super_block *sb = dir->i_sb;
 	struct minfs_sb_info *sbi = sb->s_fs_info;
 	struct inode *inode;
-	int idx;
+	int idx, changed;
 
 	/* TODO 7: Find first available inode. */
+	idx = find_first_zero_bit(&sbi->imap, MINFS_NUM_INODES);
+	if (idx == MINFS_NUM_INODES) {
+		return NULL;
+	}
 
 	/* TODO 7: Mark the inode as used in the bitmap and mark
 	 * the superblock buffer head as dirty.
 	 */
+	changed = __test_and_set_bit(idx, &sbi->imap);
+	if (changed)
+		printk(KERN_ALERT "%zu-th bit changed\n", idx);
+	mark_buffer_dirty(sbi->sbh);
 
 	/* TODO 7: Call new_inode(), fill inode fields
 	 * and insert inode into inode hash table.
 	 */
+	inode = new_inode(sb);
+	inode->i_uid = current_fsuid();
+	inode->i_gid = current_fsgid();
+	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
+	inode->i_ino = idx;
+	inode->i_blocks = 0;
+
+	insert_inode_hash(inode);
 
 	/* Actual writing to the disk will be done in minfs_write_inode,
 	 * which will be called at a later time.
@@ -334,13 +355,25 @@ static int minfs_add_link(struct dentry *dentry, struct inode *inode)
 	int err = 0;
 
 	/* TODO 7: Get: directory inode (in inode); containing inode (in mii); superblock (in sb). */
+	dir = dentry->d_parent->d_inode;
+	mii = container_of(dir, struct minfs_inode_info, vfs_inode);
+	sb = dir->i_sb;
 
 	/* TODO 7: Read dir data block (use sb_bread). */
+	bh = sb_bread(sb, mii->data_block);
 
 	/* TODO 7: Find first free dentry (de->ino == 0). */
-
+	for (i = 0; i < MINFS_NUM_ENTRIES; i++) {
+		de = (struct minfs_dir_entry *) bh->b_data + i;
+		if (!de->ino)
+			break;
+	}
 	/* TODO 7: Place new entry in the available slot. Mark buffer_head
 	 * as dirty. */
+	de->ino = inode->i_ino;
+	memcpy(de->name, dentry->d_name.name, MINFS_NAME_LEN);
+	dir->i_mtime = dir->i_ctime = current_time(inode);
+	mark_buffer_dirty(bh);
 
 out:
 	brelse(bh);
@@ -451,6 +484,7 @@ static const struct super_operations minfs_ops = {
 	.alloc_inode	= minfs_alloc_inode,
 	.destroy_inode	= minfs_destroy_inode,
 	/* TODO 7:	= set write_inode function. */
+	.write_inode	= minfs_write_inode
 };
 
 static int minfs_fill_super(struct super_block *s, void *data, int silent)
